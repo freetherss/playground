@@ -1,0 +1,65 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.0.0'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'kr.co.inwoo6325'
+version = '0.0.1-SNAPSHOT'
+description = 'Demo project for Spring Boot'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	
+	testImplementation 'org.springframework.boot:spring-boot-starter-thymeleaf-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	
+	// Web 및 REST API
+    implementation 'org.springframework.boot:spring-boot-starter-web' 
+    
+    // JPA 및 데이터베이스
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.mysql:mysql-connector-j' // 또는 'org.postgresql:postgresql'
+    
+    // Lombok (필수! DTO/Entity 코드 간소화)
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+	// Test 환경에서도 필요한 경우 추가
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    
+    // 테스트 의존성 (생략 가능)
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	// Spring Security 추가 (인증/권한 관리)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+	// JWT 관련 (jjwt)
+    // 🚨 반드시 다음 세 가지 라이브러리를 모두 추가해야 합니다.
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    // 🚨 Jakarta Bean Validation API (유효성 검사)
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

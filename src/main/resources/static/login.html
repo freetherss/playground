@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>로그인</title>
+</head>
+<body>
+    <h2>로그인</h2>
+    <input type="text" id="username" placeholder="사용자 이름">
+    <input type="password" id="password" placeholder="비밀번호">
+    <button onclick="login()">로그인</button>
+    <p id="message"></p>
+
+    <script>
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const messageElement = document.getElementById('message');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    const token = await response.text();
+                    // 🚨 토큰을 로컬 저장소에 저장 (매우 중요)
+                    localStorage.setItem('jwtToken', token.trim().replace('로그인 성공: ', '')); 
+                    
+                    messageElement.textContent = '로그인 성공! 캐릭터 페이지로 이동합니다.';
+                    setTimeout(() => window.location.href = 'success.html', 2000);
+                } else {
+                    const errorText = await response.text();
+                    messageElement.textContent = `로그인 실패: ${errorText}`;
+                }
+            } catch (error) {
+                messageElement.textContent = '네트워크 오류가 발생했습니다.';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>성공 및 테스트</title>
+</head>
+<body>
+    <h2>로그인 성공! (JWT 인증 테스트)</h2>
+    <p>JWT 토큰이 localStorage에 저장되었습니다.</p>
+    
+    <h3>캐릭터 생성 테스트</h3>
+    <input type="text" id="charName" placeholder="캐릭터 이름">
+    <input type="text" id="charJob" placeholder="직업 (예: warrior)">
+    <button onclick="createCharacter()">캐릭터 생성</button>
+    
+    <p id="result"></p>
+
+    <script>
+        const token = localStorage.getItem('jwtToken');
+        if (!token) {
+            alert('토큰이 없습니다. 로그인 페이지로 돌아갑니다.');
+            window.location.href = 'login.html';
+        }
+
+        async function createCharacter() {
+            const name = document.getElementById('charName').value;
+            const job = document.getElementById('charJob').value;
+            const resultElement = document.getElementById('result');
+
+            try {
+                const response = await fetch('/api/characters', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        // 🚨 저장된 JWT 토큰을 Authorization 헤더에 담아 보냅니다. (Bearer 필수)
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ name, job })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultElement.textContent = `캐릭터 생성 성공! 이름: ${data.name}, ID: ${data.id}`;
+                    // 추가로 GET /api/characters 호출하여 목록을 확인할 수 있습니다.
+                } else {
+                    const errorText = await response.text();
+                    resultElement.textContent = `캐릭터 생성 실패 (${response.status}): ${errorText}`;
+                }
+            } catch (error) {
+                resultElement.textContent = '네트워크 오류가 발생했습니다.';
+            }
+        }
+    </script>
+</body>
+</html>
