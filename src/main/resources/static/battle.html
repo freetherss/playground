@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Knight Saga - Battle</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        .battle-container { display: flex; justify-content: space-around; width: 80%; margin-top: 20px; }
+        .combatant { border: 1px solid #ccc; border-radius: 8px; padding: 20px; width: 40%; }
+        .combatant h2 { margin-top: 0; }
+        .hp-bar-container { background-color: #f1f1f1; border-radius: 5px; }
+        .hp-bar { background-color: #4CAF50; height: 24px; border-radius: 5px; text-align: center; color: white; line-height: 24px;}
+        .controls, .log-container { width: 80%; margin-top: 20px; }
+        button { padding: 10px 15px; font-size: 16px; cursor: pointer; }
+        #attackBtn { background-color: #f44336; color: white; }
+        #backBtn { background-color: #008CBA; color: white; display: none; }
+        #log { border: 1px solid #eee; height: 200px; overflow-y: scroll; padding: 10px; background-color: #fafafa; }
+    </style>
+</head>
+<body>
+
+    <h1>Battle</h1>
+
+    <div class="battle-container">
+        <div id="player" class="combatant">
+            <h2 id="playerName">Player</h2>
+            <div class="hp-bar-container">
+                <div id="playerHpBar" class="hp-bar" style="width: 100%;">...</div>
+            </div>
+        </div>
+        <div id="monster" class="combatant">
+            <h2 id="monsterName">Monster</h2>
+            <div class="hp-bar-container">
+                <div id="monsterHpBar" class="hp-bar" style="width: 100%;">...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="attackBtn" disabled>Attack</button>
+        <button id="backBtn" onclick="window.location.href='success.html'">전투 목록으로</button>
+    </div>
+
+    <div class="log-container">
+        <h3>Battle Log</h3>
+        <pre id="log"></pre>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('jwtToken');
+        if (!token) {
+            alert('토큰이 없습니다. 로그인 페이지로 돌아갑니다.');
+            window.location.href = 'login.html';
+        }
+        
+        // --- DOM Elements ---
+        const attackBtn = document.getElementById('attackBtn');
+        const backBtn = document.getElementById('backBtn');
+        const logEl = document.getElementById('log');
+
+        const playerNameEl = document.getElementById('playerName');
+        const playerHpBar = document.getElementById('playerHpBar');
+        
+        const monsterNameEl = document.getElementById('monsterName');
+        const monsterHpBar = document.getElementById('monsterHpBar');
+
+        // --- Battle State ---
+        let battleState = {
+            battleId: null,
+            player: null,
+            monster: null,
+            isBattleOver: false
+        };
+
+        // --- Functions ---
+        function appendToLog(message) {
+            logEl.textContent += message + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateUI(session) {
+            const player = session.combatants.find(c => c.hasOwnProperty('job'));
+            const monster = session.combatants.find(c => !c.hasOwnProperty('job'));
+
+            battleState.player = player;
+            battleState.monster = monster;
+            
+            if (player) {
+                playerNameEl.textContent = player.name;
+                const playerHpPercent = Math.max(0, (player.currentHp / player.maxHp) * 100);
+                playerHpBar.style.width = playerHpPercent + '%';
+                playerHpBar.textContent = `${player.currentHp} / ${player.maxHp}`;
+            }
+            
+            if (monster) {
+                monsterNameEl.textContent = monster.name;
+                const monsterHpPercent = Math.max(0, (monster.currentHp / monster.maxHp) * 100);
+                monsterHpBar.style.width = monsterHpPercent + '%';
+                monsterHpBar.textContent = `${monster.currentHp} / ${monster.maxHp}`;
+            }
+        }
+
+        async function initBattle() {
+            const params = new URLSearchParams(window.location.search);
+            const characterId = params.get('characterId');
+            const monsterId = params.get('monsterId');
+
+            if (!characterId || !monsterId) {
+                appendToLog('오류: 캐릭터 ID 또는 몬스터 ID가 없습니다. 이전 페이지로 돌아가세요.');
+                return;
+            }
+
+            try {
+                appendToLog('전투를 시작합니다...');
+                const response = await fetch(`/api/battles/start?characterId=${characterId}&monsterId=${monsterId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('전투 시작 실패: ' + await response.text());
+                }
+
+                const session = await response.json();
+                battleState.battleId = session.battleId;
+                
+                appendToLog('전투 시작! 전투 ID: ' + session.battleId);
+                updateUI(session);
+
+                attackBtn.disabled = false;
+            } catch (error) {
+                console.error(error);
+                appendToLog('오류: ' + error.message);
+                backBtn.style.display = 'inline-block';
+            }
+        }
+
+        async function performAttack() {
+            if (!battleState.battleId || battleState.isBattleOver) return;
+
+            try {
+                attackBtn.disabled = true;
+                const response = await fetch(`/api/battles/${battleState.battleId}/attack`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('공격 실패: ' + await response.text());
+                }
+
+                const result = await response.json();
+                
+                appendToLog(result.battleLog);
+                if (result.rewardMessage) {
+                    appendToLog(result.rewardMessage);
+                }
+                updateUI(result.battleSession);
+                
+                if (result.battleSession.isBattleOver) {
+                    battleState.isBattleOver = true;
+                    appendToLog("--- 전투 종료 ---");
+                    attackBtn.disabled = true;
+                    backBtn.style.display = 'inline-block';
+                } else {
+                    attackBtn.disabled = false;
+                }
+
+            } catch (error) {
+                console.error(error);
+                appendToLog('오류: ' + error.message);
+                attackBtn.disabled = false;
+            }
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('load', initBattle);
+        attackBtn.addEventListener('click', performAttack);
+    </script>
+
+</body>
+</html>

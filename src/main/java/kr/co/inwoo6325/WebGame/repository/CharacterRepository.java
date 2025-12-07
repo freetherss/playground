@@ -4,10 +4,12 @@ import kr.co.inwoo6325.WebGame.model.entity.Character;
 import kr.co.inwoo6325.WebGame.model.entity.UserAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import java.util.Optional;
 
 public interface CharacterRepository extends JpaRepository<Character, Long> {
     
     // Spring Data JPA는 메서드 이름을 분석하여 쿼리를 자동 생성합니다 (DRY)
+    Optional<Character> findByName(String name);
     
     // 캐릭터 이름 중복 검사에 사용
     boolean existsByName(String name);

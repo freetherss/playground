@@ -5,15 +5,21 @@
     <title>성공 및 테스트</title>
 </head>
 <body>
-    <h2>로그인 성공! (JWT 인증 테스트)</h2>
+    <h2>로그인 성공!</h2>
     <p>JWT 토큰이 localStorage에 저장되었습니다.</p>
     
-    <h3>캐릭터 생성 테스트</h3>
+    <hr>
+
+    <h3>캐릭터 생성</h3>
     <input type="text" id="charName" placeholder="캐릭터 이름">
     <input type="text" id="charJob" placeholder="직업 (예: warrior)">
     <button onclick="createCharacter()">캐릭터 생성</button>
-    
-    <p id="result"></p>
+    <p id="createResult"></p>
+
+    <hr>
+
+    <h3>내 캐릭터 목록</h3>
+    <div id="characterList"></div>
 
     <script>
         const token = localStorage.getItem('jwtToken');
@@ -22,17 +28,19 @@
             window.location.href = 'login.html';
         }
 
+        // 페이지 로드 시 캐릭터 목록을 불러옵니다.
+        window.onload = getCharacters;
+
         async function createCharacter() {
             const name = document.getElementById('charName').value;
             const job = document.getElementById('charJob').value;
-            const resultElement = document.getElementById('result');
+            const resultElement = document.getElementById('createResult');
 
             try {
                 const response = await fetch('/api/characters', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        // 🚨 저장된 JWT 토큰을 Authorization 헤더에 담아 보냅니다. (Bearer 필수)
                         'Authorization': `Bearer ${token}` 
                     },
                     body: JSON.stringify({ name, job })
@@ -41,13 +49,56 @@
                 if (response.ok) {
                     const data = await response.json();
                     resultElement.textContent = `캐릭터 생성 성공! 이름: ${data.name}, ID: ${data.id}`;
-                    // 추가로 GET /api/characters 호출하여 목록을 확인할 수 있습니다.
+                    getCharacters(); // 캐릭터 목록 새로고침
                 } else {
                     const errorText = await response.text();
                     resultElement.textContent = `캐릭터 생성 실패 (${response.status}): ${errorText}`;
                 }
             } catch (error) {
                 resultElement.textContent = '네트워크 오류가 발생했습니다.';
+            }
+        }
+
+        async function getCharacters() {
+            const characterListDiv = document.getElementById('characterList');
+            characterListDiv.innerHTML = '캐릭터 목록을 불러오는 중...';
+
+            try {
+                const response = await fetch('/api/characters', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const characters = await response.json();
+                    characterListDiv.innerHTML = ''; // 기존 목록 초기화
+                    if (characters.length === 0) {
+                        characterListDiv.textContent = '생성된 캐릭터가 없습니다.';
+                    } else {
+                        const ul = document.createElement('ul');
+                        characters.forEach(char => {
+                            const li = document.createElement('li');
+                            li.textContent = `이름: ${char.name}, 레벨: ${char.level}, 직업: ${char.job}`;
+                            
+                            const battleButton = document.createElement('button');
+                            battleButton.textContent = '전투 시작 (vs 고블린)';
+                            battleButton.onclick = function() {
+                                // 몬스터 ID 1 (고블린)으로 전투 시작
+                                window.location.href = `battle.html?characterId=${char.id}&monsterId=1`;
+                            };
+                            
+                            li.appendChild(battleButton);
+                            ul.appendChild(li);
+                        });
+                        characterListDiv.appendChild(ul);
+                    }
+                } else {
+                    characterListDiv.textContent = '캐릭터 목록을 불러오는데 실패했습니다.';
+                }
+            } catch (error) {
+                characterListDiv.textContent = '네트워크 오류가 발생했습니다.';
             }
         }
     </script>

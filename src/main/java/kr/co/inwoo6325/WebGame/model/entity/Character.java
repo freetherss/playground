@@ -14,7 +14,7 @@ import lombok.Builder;
 @AllArgsConstructor // 모든 필드를 포함하는 생성자 자동 생성
 @Builder
 @Table(name = "character_info")
-public class Character {
+public class Character implements Combatant {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -36,6 +36,21 @@ public class Character {
     private long exp = 0;
     @Builder.Default
     private long gold = 0;
+    
+    @Builder.Default
+    private int maxHp = 100;
+    @Builder.Default
+    private int currentHp = 100;
+    @Builder.Default
+    private int maxMp = 50;
+    @Builder.Default
+    private int currentMp = 50;
+    @Builder.Default
+    private int attack = 10;
+    @Builder.Default
+    private int defense = 5;
+    @Builder.Default
+    private int agility = 5;
     
     @Column(name = "current_map", nullable = false, length = 50)
     @Builder.Default

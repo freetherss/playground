@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import kr.co.inwoo6325.WebGame.service.JwtTokenProvider;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +19,7 @@ import java.io.IOException;
 // 🚨 @Component 어노테이션을 추가하여 Spring Bean으로 등록합니다.
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -28,20 +30,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String token = resolveToken(request);
+        log.debug("Extracted JWT token from request: {}", token != null ? "Present" : "Absent");
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            // 토큰에서 사용자 이름 추출
-            String username = jwtTokenProvider.getUsername(token);
-            
-            // UserDetailsService를 통해 UserDetails 로드
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            
-            // 인증 객체 생성
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
 
-            // SecurityContext에 인증 정보 저장
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (token != null) {
+            boolean isValidToken = jwtTokenProvider.validateToken(token);
+            log.debug("JWT token validation result by JwtAuthenticationFilter: {}", isValidToken);
+
+            if (isValidToken) {
+                // 토큰에서 사용자 이름 추출
+                String username = jwtTokenProvider.getUsername(token);
+                log.debug("Username extracted from token: {}", username);
+
+                // UserDetailsService를 통해 UserDetails 로드
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                log.debug("UserDetails loaded for user: {}", userDetails.getUsername());
+
+                // 인증 객체 생성
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+
+                // SecurityContext에 인증 정보 저장
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Authentication set in SecurityContext for user: {}", userDetails.getUsername());
+            }
         }
 
         filterChain.doFilter(request, response);

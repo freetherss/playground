@@ -6,8 +6,6 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-// import jakarta.annotation.PostConstruct;
-// import kr.co.inwoo6325.WebGame.model.entity.UserAccount;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -54,44 +52,24 @@ public class JwtTokenProvider {
     public String generateToken(UserDetails userDetails) {
         Claims claims = Jwts.claims().setSubject(userDetails.getUsername());
         
-        // 권한 정보 추가 (현재는 Roles를 사용하지 않으므로, 더미 데이터 혹은 생략 가능)
         String authorities = userDetails.getAuthorities().stream()
-            .map(auth -> auth.getAuthority()) // .map(GrantedAuthority::getAuthority)
+            .map(auth -> auth.getAuthority())
             .collect(Collectors.joining(","));
         claims.put("auth", authorities);
 
         Date now = new Date();
         Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
 
-        return Jwts.builder()
+        String generatedToken = Jwts.builder()
             .setClaims(claims) // 데이터
             .setIssuedAt(now) // 토큰 발행일자
             .setExpiration(validity) // 만료일시
             .signWith(key, SignatureAlgorithm.HS512) 
             .compact();
+        log.debug("Generated JWT token for user {}: {}", userDetails.getUsername(), generatedToken);
+        return generatedToken;
     }
-    
-    /**
-     * JWT 토큰 생성 (Authentication 기반) - 권장
-     */
-    public String generateToken(Authentication authentication) {
-        Claims claims = Jwts.claims().setSubject(authentication.getName());
-        
-        String authorities = authentication.getAuthorities().stream()
-            .map(auth -> auth.getAuthority()) // .map(GrantedAuthority::getAuthority)
-            .collect(Collectors.joining(","));
-        claims.put("auth", authorities);
 
-        Date now = new Date();
-        Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
-
-        return Jwts.builder()
-            .setClaims(claims) // 데이터
-            .setIssuedAt(now) // 토큰 발행일자
-            .setExpiration(validity) // 만료일시
-            .signWith(key, SignatureAlgorithm.HS512) 
-            .compact();
-    }
 
     /**
      * JWT 토큰에서 인증 정보 조회
@@ -122,23 +100,26 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
+            log.debug("Validating JWT token: {}", token);
             // 🚨 레거시 parser 방식 사용
             Jws<Claims> claims = Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token);
             
-            // 만료일자가 지나지 않았으면 true 반환
-            return !claims.getBody().getExpiration().before(new Date());
+            boolean isValid = !claims.getBody().getExpiration().before(new Date());
+            log.debug("JWT token validation result: {}", isValid ? "VALID" : "EXPIRED");
+            return isValid;
         } catch (io.jsonwebtoken.security.SecurityException | io.jsonwebtoken.MalformedJwtException e) {
-            log.info("잘못된 JWT 서명입니다.");
+            log.info("잘못된 JWT 서명입니다: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
-            log.info("만료된 JWT 토큰입니다.");
+            log.info("만료된 JWT 토큰입니다: {}", e.getMessage());
         } catch (io.jsonwebtoken.UnsupportedJwtException e) {
-            log.info("지원되지 않는 JWT 토큰입니다.");
+            log.info("지원되지 않는 JWT 토큰입니다: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            log.info("JWT 토큰이 잘못되었습니다.");
+            log.info("JWT 토큰이 잘못되었습니다: {}", e.getMessage());
         }
+        log.debug("JWT token validation result: INVALID");
         return false;
     }
 }

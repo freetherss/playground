@@ -6,12 +6,14 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 @Entity
 @Getter // 모든 필드에 Getter 자동 생성
 @Setter // 모든 필드에 Setter 자동 생성
 @NoArgsConstructor
 @AllArgsConstructor // 모든 필드를 포함하는 생성자 자동 생성
+@Builder
 @Table(name = "user_account") // 테이블명 지정
 public class UserAccount {
     @Id
@@ -27,6 +29,11 @@ public class UserAccount {
     @Column(unique = true, length = 100)
     private String email;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 }
